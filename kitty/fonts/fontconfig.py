@@ -90,6 +90,7 @@ def find_font_features(postscript_name: str) -> Tuple[str, ...]:
 
 
 def find_best_match(family: str, bold: bool = False, italic: bool = False, monospaced: bool = True) -> FontConfigPattern:
+    monospaced = False
     q = family_name_to_key(family)
     font_map = all_fonts_map(monospaced)
 
@@ -113,22 +114,20 @@ def find_best_match(family: str, bold: bool = False, italic: bool = False, monos
         candidates.sort(key=score)
         return candidates[0]
 
-    # Use fc-match to see if we can find a monospaced font that matches family
-    for spacing in (FC_MONO, FC_DUAL):
-        possibility = fc_match(family, False, False, spacing)
-        for key, map_key in (('postscript_name', 'ps_map'), ('full_name', 'full_map'), ('family', 'family_map')):
-            val: Optional[str] = cast(Optional[str], possibility.get(key))
-            if val:
-                candidates = font_map[map_key].get(family_name_to_key(val))
-                if candidates:
-                    if len(candidates) == 1:
-                        # happens if the family name is an alias, so we search with
-                        # the actual family name to see if we can find all the
-                        # fonts in the family.
-                        family_name_candidates = font_map['family_map'].get(family_name_to_key(candidates[0]['family']))
-                        if family_name_candidates and len(family_name_candidates) > 1:
-                            candidates = family_name_candidates
-                    return sorted(candidates, key=score)[0]
+    possibility = fc_match(family, False, False)
+    for key, map_key in (('postscript_name', 'ps_map'), ('full_name', 'full_map'), ('family', 'family_map')):
+        val: Optional[str] = cast(Optional[str], possibility.get(key))
+        if val:
+            candidates = font_map[map_key].get(family_name_to_key(val))
+            if candidates:
+                if len(candidates) == 1:
+                    # happens if the family name is an alias, so we search with
+                    # the actual family name to see if we can find all the
+                    # fonts in the family.
+                    family_name_candidates = font_map['family_map'].get(family_name_to_key(candidates[0]['family']))
+                    if family_name_candidates and len(family_name_candidates) > 1:
+                        candidates = family_name_candidates
+                return sorted(candidates, key=score)[0]
 
     # Use fc-match with a generic family
     family = 'monospace' if monospaced else 'sans-serif'
